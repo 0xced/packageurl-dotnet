@@ -18,66 +18,65 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System;
+using System.Diagnostics.CodeAnalysis;
+using FluentAssertions;
 using PackageUrl.Tests.TestAssets;
 using Xunit;
 
-namespace PackageUrl.Tests
+namespace PackageUrl.Tests;
+
+/// <summary>
+/// Test cases for PackageURL parsing.
+/// </summary>
+/// <remarks>
+/// Original test cases retrieved from: https://raw.githubusercontent.com/package-url/purl-spec/master/test-suite-data.json
+/// </remarks>
+[SuppressMessage("Usage", "xUnit1045:Avoid using TheoryData type arguments that might not be serializable", Justification = "PurlTestData is serializable")]
+public class PackageURLTest
 {
-    /// <summary>
-    /// Test cases for PackageURL parsing.
-    /// </summary>
-    /// <remarks>
-    /// Original test cases retrieved from: https://raw.githubusercontent.com/package-url/purl-spec/master/test-suite-data.json
-    /// </remarks>
-    public class PackageURLTest
+    [Theory]
+    [ClassData(typeof(PurlValidTheoryData))]
+    public void TestValidConstructorParsing(PurlTestData data)
     {
-        [Theory]
-        [PurlTestData("TestAssets/test-suite-data.json")]
-        public void TestConstructorParsing(PurlTestData data)
-        {
-            if (data.IsInvalid)
-            {
-                Assert.Throws<MalformedPackageUrlException>(() => new PackageURL(data.Purl));
-                return;
-            }
+        PackageURL purl = new PackageURL(data.Purl);
 
-            PackageURL purl = new PackageURL(data.Purl);
-            Assert.Equal(data.CanonicalPurl, purl.ToString());
-            Assert.Equal("pkg", purl.Scheme);
-            Assert.Equal(data.Type, purl.Type);
-            Assert.Equal(data.Namespace, purl.Namespace);
-            Assert.Equal(data.Name, purl.Name);
-            Assert.Equal(data.Version, purl.Version);
-            Assert.Equal(data.Subpath, purl.Subpath);
-            if (data.Qualifiers != null)
-            {
-                Assert.NotNull(purl.Qualifiers);
-            }
-        }
+        purl.Should().BeEquivalentTo(data, options => options.ExcludingMissingMembers());
+    }
 
-        [Theory]
-        [PurlTestData("TestAssets/test-suite-data.json")]
-        public void TestConstructorParameters(PurlTestData data)
-        {
-            if (data.IsInvalid)
-            {
-                Assert.Throws<MalformedPackageUrlException>(() => new PackageURL(data.Purl));
-                return;
-            }
+    [Theory]
+    [ClassData(typeof(PurlValidTheoryData))]
+    public void TestValidConstructorParameters(PurlTestData data)
+    {
+        PackageURL purl = new PackageURL(data.Type, data.Namespace, data.Name, data.Version, data.Qualifiers, data.Subpath);
 
-            PackageURL purl = new PackageURL(data.Type, data.Namespace, data.Name, data.Version, data.Qualifiers, data.Subpath);
+        purl.Should().BeEquivalentTo(data, options => options.ExcludingMissingMembers());
+    }
 
-            Assert.Equal(data.CanonicalPurl, purl.ToString());
-            Assert.Equal("pkg", purl.Scheme);
-            Assert.Equal(data.Type, purl.Type);
-            Assert.Equal(data.Namespace, purl.Namespace);
-            Assert.Equal(data.Name, purl.Name);
-            Assert.Equal(data.Version, purl.Version);
-            Assert.Equal(data.Subpath, purl.Subpath);
-            if (data.Qualifiers != null)
-            {
-                Assert.NotNull(purl.Qualifiers);
-            }
-        }
+    [Theory]
+    [ClassData(typeof(PurlValidTheoryData))]
+    public void TestSerialization(PurlTestData data)
+    {
+        PackageURL purl = new PackageURL(data.Purl);
+
+        purl.ToString().Should().Be(data.CanonicalPurl);
+    }
+
+    [Theory]
+    [ClassData(typeof(PurlInvalidTheoryData))]
+    public void TestInvalidConstructorParsing(PurlTestData data)
+    {
+        Action act = () => _ = new PackageURL(data.Purl);
+
+        act.Should().Throw<MalformedPackageUrlException>(because: data.Description);
+    }
+
+    [Theory]
+    [ClassData(typeof(PurlInvalidTheoryData))]
+    public void TestInvalidConstructorParameters(PurlTestData data)
+    {
+        Action act = () => _ = new PackageURL(data.Type, data.Namespace, data.Name, data.Version, data.Qualifiers, data.Subpath);
+
+        act.Should().Throw<MalformedPackageUrlException>(because: data.Description);
     }
 }

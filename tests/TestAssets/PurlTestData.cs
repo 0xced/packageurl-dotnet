@@ -1,4 +1,4 @@
-﻿// MIT License
+// MIT License
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,62 +18,57 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using Newtonsoft.Json;
-using Xunit.Sdk;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Xunit;
 
-namespace PackageUrl.Tests.TestAssets
+namespace PackageUrl.Tests.TestAssets;
+
+public record PurlTestData(
+    string Description,
+    string Purl,
+    string CanonicalPurl,
+    string Type,
+    string Namespace,
+    string Name,
+    string Version,
+    SortedDictionary<string, string> Qualifiers,
+    string Subpath,
+    bool IsInvalid)
 {
-    public class PurlTestData : DataAttribute
+    public override string ToString() => Purl;
+}
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSerializable(typeof(PurlTestData[]))]
+public partial class PurlTestSerializerContext : JsonSerializerContext;
+
+public abstract class PurlTheoryData : TheoryData<PurlTestData>
+{
+    private readonly Lazy<PurlTestData[]> _testData = new(() =>
     {
-        private static readonly JsonSerializer s_serializer = new JsonSerializer();
-        private static readonly Dictionary<string, IEnumerable<object[]>> s_assetsStore = new Dictionary<string, IEnumerable<object[]>>();
-        private readonly string _filePath;
+        using var testSuiteStream = GetTestSuiteFile().OpenRead();
+        return JsonSerializer.Deserialize(testSuiteStream, PurlTestSerializerContext.Default.PurlTestDataArray);
+    });
 
-        public string Description;
+    protected PurlTheoryData() => AddRange(_testData.Value.Where(Filter).ToArray());
 
-        public string Purl;
+    protected abstract bool Filter(PurlTestData data);
 
-        [JsonProperty("canonical_purl")]
-        public string CanonicalPurl;
+    private static FileInfo GetTestSuiteFile([CallerFilePath] string path = "") => new(Path.Combine(Path.GetDirectoryName(path)!, "test-suite-data.json"));
+}
 
-        public string Type;
+public class PurlValidTheoryData : PurlTheoryData
+{
+    protected override bool Filter(PurlTestData data) => !data.IsInvalid;
+}
 
-        public string Namespace;
-
-        public string Name;
-
-        public string Version;
-
-        public SortedDictionary<string, string> Qualifiers;
-
-        public string Subpath;
-
-        [JsonProperty("is_invalid")]
-        public bool IsInvalid;
-
-        public PurlTestData(string filePath)
-        {
-            _filePath = filePath;
-        }
-
-        public override IEnumerable<object[]> GetData(MethodInfo testMethod)
-        {
-            if (s_assetsStore.ContainsKey(_filePath))
-            {
-                return s_assetsStore[_filePath];
-            }
-
-            using (var streamReader = new StreamReader(_filePath))
-            {
-                var reader = new JsonTextReader(streamReader);
-                var data = s_serializer.Deserialize<PurlTestData[]>(reader);
-                s_assetsStore[_filePath] = data.Select(x => new object[] { x });
-                return s_assetsStore[_filePath];
-            }
-        }
-    }
+public class PurlInvalidTheoryData : PurlTheoryData
+{
+    protected override bool Filter(PurlTestData data) => data.IsInvalid;
 }
