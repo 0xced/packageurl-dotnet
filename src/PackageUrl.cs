@@ -1,4 +1,4 @@
-﻿// MIT License
+// MIT License
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -295,7 +295,7 @@ namespace PackageUrl
 
         private static SortedDictionary<string, string> ValidateQualifiers(string qualifiers)
         {
-            var list = new SortedDictionary<string, string>();
+            var list = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string[] pairs = qualifiers.Split('&');
             foreach (var pair in pairs)
             {
